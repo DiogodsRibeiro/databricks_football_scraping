@@ -2,6 +2,8 @@ import json
 import time
 import re
 import unicodedata
+import csv
+import io
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -28,7 +30,7 @@ def limpar_nome_arquivo(nome):
 
 def download_from_azure(container_name, blob_name):
     """
-    Baixa um arquivo JSON do Azure Blob Storage e retorna os dados
+    Baixa um arquivo CSV do Azure Blob Storage e retorna os dados
     """
     try:
         blob_service_client = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
@@ -36,7 +38,9 @@ def download_from_azure(container_name, blob_name):
         
         download_stream = blob_client.download_blob()
         conteudo = download_stream.readall().decode('utf-8')
-        dados = json.loads(conteudo)
+        
+        csv_reader = csv.DictReader(io.StringIO(conteudo))
+        dados = [row['url'] for row in csv_reader]
         
         print(f"✅ Arquivo baixado do Azure: {blob_name}")
         return dados
@@ -47,7 +51,7 @@ def download_from_azure(container_name, blob_name):
 
 def upload_para_azure(dados, container_name, nome_arquivo):
     """
-    Faz upload incremental do arquivo JSON para o Azure Blob Storage
+    Faz upload incremental do arquivo CSV para o Azure Blob Storage
     """
     try:
         blob_service_client = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
@@ -65,10 +69,12 @@ def upload_para_azure(dados, container_name, nome_arquivo):
         try:
             download_stream = blob_client.download_blob()
             conteudo_existente = download_stream.readall().decode('utf-8')
-            dados_existentes = json.loads(conteudo_existente)
+            csv_reader = csv.DictReader(io.StringIO(conteudo_existente))
+            dados_existentes = list(csv_reader)
             print(f"📥 Arquivo existente carregado com {len(dados_existentes)} registros")
         except Exception:
             print(f"ℹ️  Arquivo não existe ainda, criando novo")
+        
         ids_existentes = {item['id'] for item in dados_existentes}
         novos_dados = [item for item in dados if item['id'] not in ids_existentes]
         
@@ -77,9 +83,30 @@ def upload_para_azure(dados, container_name, nome_arquivo):
         print(f"➕ Adicionando {len(novos_dados)} novos registros")
         print(f"📊 Total final: {len(dados_finais)} registros")
         
-        json_data = json.dumps(dados_finais, ensure_ascii=False, indent=4)
+        # Coletar todas as colunas possíveis de todos os registros
+        todas_colunas = set()
+        for item in dados_finais:
+            todas_colunas.update(item.keys())
         
-        blob_client.upload_blob(json_data, overwrite=True)
+        # Ordenar colunas: 'date' e 'id' primeiro, depois as outras em ordem alfabética
+        colunas_fixas = ['date', 'id']
+        outras_colunas = sorted([col for col in todas_colunas if col not in colunas_fixas])
+        fieldnames = colunas_fixas + outras_colunas
+        
+        # Converter para CSV
+        csv_buffer = io.StringIO()
+        if dados_finais:
+            csv_writer = csv.DictWriter(csv_buffer, fieldnames=fieldnames, extrasaction='ignore')
+            csv_writer.writeheader()
+            
+            # Preencher campos vazios com string vazia
+            for item in dados_finais:
+                row = {col: item.get(col, '') for col in fieldnames}
+                csv_writer.writerow(row)
+        
+        csv_data = csv_buffer.getvalue()
+        
+        blob_client.upload_blob(csv_data, overwrite=True)
         
         print(f"✅ Arquivo salvo no Azure: {nome_arquivo}")
         return True
@@ -97,7 +124,7 @@ def esperar_todos_elementos(driver, classes, espera=15):
 def coletar_estatisticas_partidas_incremental():
 
     print("📥 Baixando URLs do Azure...")
-    urls = download_from_azure(CONTAINER_INPUT, "statistics_urls.json")
+    urls = download_from_azure(CONTAINER_INPUT, "statistics_urls.csv")
     
     if not urls:
         print("❌ Não foi possível carregar as URLs do Azure")
@@ -217,7 +244,7 @@ def coletar_estatisticas_partidas_incremental():
                 sucesso = True
 
                 if len(todos_os_jogos) % 100 == 0:
-                    upload_para_azure(todos_os_jogos, CONTAINER_OUTPUT, "incremental_games_statistics.json")
+                    upload_para_azure(todos_os_jogos, CONTAINER_OUTPUT, "incremental_games_statistics.csv")
                     print(f"💾 Progresso salvo com {len(todos_os_jogos)} jogos.")
 
             except Exception as e:
@@ -244,10 +271,10 @@ def coletar_estatisticas_partidas_incremental():
         if sucesso:
             time.sleep(3)
 
-    upload_para_azure(todos_os_jogos, CONTAINER_OUTPUT, "incremental_games_statistics.json")
+    upload_para_azure(todos_os_jogos, CONTAINER_OUTPUT, "incremental_games_statistics.csv")
 
     if urls_com_falha:
-        upload_para_azure(urls_com_falha, CONTAINER_OUTPUT, "urls_com_falha.json")
+        upload_para_azure(urls_com_falha, CONTAINER_OUTPUT, "urls_com_falha.csv")
         print(f"⚠️  {len(urls_com_falha)} URLs falharam")
 
     print(f"\n✅ {len(todos_os_jogos)} jogos coletados com sucesso!")

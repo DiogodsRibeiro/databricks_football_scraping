@@ -2,6 +2,8 @@ import json
 import os
 import re
 import unicodedata
+import csv
+import io
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -21,12 +23,10 @@ DIAS_RETROATIVOS = 4
 
 def upload_para_azure(dados, nome_arquivo):
     """
-    Faz upload incremental do arquivo JSON para o Azure Blob Storage
+    Faz upload incremental do arquivo CSV para o Azure Blob Storage
     """
     try:
-
         blob_service_client = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
-        
         container_client = blob_service_client.get_container_client(AZURE_CONTAINER_NAME)
         
         try:
@@ -44,7 +44,8 @@ def upload_para_azure(dados, nome_arquivo):
         try:
             download_stream = blob_client.download_blob()
             conteudo_existente = download_stream.readall().decode('utf-8')
-            dados_existentes = json.loads(conteudo_existente)
+            csv_reader = csv.DictReader(io.StringIO(conteudo_existente))
+            dados_existentes = list(csv_reader)
             print(f"📥 Arquivo existente carregado com {len(dados_existentes)} registros")
         except Exception:
             print(f"ℹ️  Arquivo não existe ainda, criando novo")
@@ -57,9 +58,30 @@ def upload_para_azure(dados, nome_arquivo):
         print(f"➕ Adicionando {len(novos_dados)} novos registros")
         print(f"📊 Total final: {len(dados_finais)} registros")
         
-        json_data = json.dumps(dados_finais, ensure_ascii=False, indent=4)
+        # Coletar todas as colunas possíveis
+        todas_colunas = set()
+        for item in dados_finais:
+            todas_colunas.update(item.keys())
         
-        blob_client.upload_blob(json_data, overwrite=True)
+        # Ordenar colunas: colunas fixas primeiro, depois as outras
+        colunas_fixas = ['id', 'origem', 'Campeonato', 'Temporada', 'Rodada', 'Data', 'Hora', 
+                        'Time da Casa', 'Time Visitante', 'Placar da Casa', 'Placar do Visitante']
+        outras_colunas = sorted([col for col in todas_colunas if col not in colunas_fixas])
+        fieldnames = [col for col in colunas_fixas if col in todas_colunas] + outras_colunas
+        
+        # Converter para CSV
+        csv_buffer = io.StringIO()
+        if dados_finais:
+            csv_writer = csv.DictWriter(csv_buffer, fieldnames=fieldnames, extrasaction='ignore')
+            csv_writer.writeheader()
+            
+            for item in dados_finais:
+                row = {col: item.get(col, '') for col in fieldnames}
+                csv_writer.writerow(row)
+        
+        csv_data = csv_buffer.getvalue()
+        
+        blob_client.upload_blob(csv_data, overwrite=True)
         
         print(f"✅ Arquivo salvo no Azure: {nome_arquivo}")
         return True
@@ -222,7 +244,7 @@ def carga_incremental_results(carregar_todos=False):
         print(f"📊 {len(dados_partida)} jogos encontrados para {campeonato} ({nacionalidade})")
         todos_os_dados.extend(dados_partida)
 
-    nome_arquivo = f'all_results_incremental.json'
+    nome_arquivo = f'all_results_incremental.csv'
     
     upload_para_azure(todos_os_dados, nome_arquivo)
 

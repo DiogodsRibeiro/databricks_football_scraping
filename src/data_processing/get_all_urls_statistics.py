@@ -1,7 +1,9 @@
 import json
 import re
+import csv
 import time
 from pathlib import Path
+import io 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -25,32 +27,33 @@ INPUT_FILE = "data/json/all_url.json"
 
 def upload_para_azure(dados, nome_arquivo):
     """
-    Faz upload do arquivo JSON para o Azure Blob Storage
+    Faz upload do arquivo CSV para o Azure Blob Storage
     """
     try:
-
         blob_service_client = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
-        
-
         container_client = blob_service_client.get_container_client(AZURE_CONTAINER_NAME)
         
-
         try:
             container_client.create_container()
             print(f"✅ Container '{AZURE_CONTAINER_NAME}' criado")
         except Exception:
             print(f"ℹ️  Container '{AZURE_CONTAINER_NAME}' já existe")
         
-        json_data = json.dumps(dados, ensure_ascii=False, indent=4)
+        # Converter para CSV
+        csv_buffer = io.StringIO()
+        csv_writer = csv.writer(csv_buffer)
+        csv_writer.writerow(['url'])
+        for url in dados:
+            csv_writer.writerow([url])
+        csv_data = csv_buffer.getvalue()
         
         blob_name = nome_arquivo
-        
         blob_client = blob_service_client.get_blob_client(
             container=AZURE_CONTAINER_NAME, 
             blob=blob_name
         )
         
-        blob_client.upload_blob(json_data, overwrite=True)
+        blob_client.upload_blob(csv_data, overwrite=True)
         
         print(f"✅ Arquivo salvo no Azure: {blob_name}")
         return True
@@ -129,7 +132,7 @@ def coletar_urls_estatisticas():
                 print(f"Erro ao processar {URL}: {e}")
                 continue
 
-        nome_arquivo = 'statistics_urls.json'
+        nome_arquivo = 'statistics_urls.csv'
         upload_para_azure(all_stats_links, nome_arquivo)
         
         print(f"\n✅ {len(all_stats_links)} links (últimos 4 dias incluindo hoje) salvos no Azure")

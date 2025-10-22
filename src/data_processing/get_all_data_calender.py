@@ -1,6 +1,8 @@
 import json
 import os
 import re
+from io import StringIO
+import csv
 import unicodedata
 from pathlib import Path
 from selenium import webdriver
@@ -11,7 +13,7 @@ from selenium.common.exceptions import NoSuchElementException
 from datetime import datetime
 import time
 import random
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, ContentSettings
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,11 +22,11 @@ AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 AZURE_CONTAINER_NAME = "calender"  
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-URLS_FILE = SCRIPT_DIR / "../../../data/json/all_url.json"
+URLS_FILE = "data/json/all_url.json"
 
 def upload_para_azure(dados, nome_arquivo):
     """
-    Faz upload do arquivo JSON para o Azure Blob Storage
+    Faz upload do arquivo CSV para o Azure Blob Storage
     """
     try:
         blob_service_client = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
@@ -37,16 +39,30 @@ def upload_para_azure(dados, nome_arquivo):
         except Exception:
             print(f"ℹ️  Container '{AZURE_CONTAINER_NAME}' já existe")
         
-        json_data = json.dumps(dados, ensure_ascii=False, indent=4)
+        # Converter dados para CSV
+        if dados:
+            output = StringIO()
+            writer = csv.DictWriter(output, fieldnames=dados[0].keys(), delimiter=';')
+            writer.writeheader()
+            writer.writerows(dados)
+            csv_data = output.getvalue()
+        else:
+            csv_data = ""
         
-        blob_name = nome_arquivo
+        # Nome do arquivo CSV
+        blob_name = nome_arquivo.replace('.json', '.csv')
 
         blob_client = blob_service_client.get_blob_client(
             container=AZURE_CONTAINER_NAME, 
             blob=blob_name
         )
         
-        blob_client.upload_blob(json_data, overwrite=True)
+        # Corrigido: usar ContentSettings ao invés de dict
+        blob_client.upload_blob(
+            csv_data, 
+            overwrite=True, 
+            content_settings=ContentSettings(content_type='text/csv')
+        )
         
         print(f"✅ Arquivo salvo no Azure: {blob_name}")
         return True
@@ -54,7 +70,6 @@ def upload_para_azure(dados, nome_arquivo):
     except Exception as e:
         print(f"❌ Erro ao fazer upload para o Azure: {e}")
         return False
-
 
 def limpar_nome_arquivo(nome):
     nome_sem_acentos = unicodedata.normalize('NFKD', nome).encode('ASCII', 'ignore').decode('ASCII')
@@ -172,7 +187,7 @@ def carga_calendario():
 
             time.sleep(random.uniform(6, 13))
 
-        nome_arquivo = 'all_calendar.json'
+        nome_arquivo = 'all_calendar.csv'
         upload_para_azure(todos_os_dados, nome_arquivo)
         
         print(f"\n✅ Total de {len(todos_os_dados)} partidas salvas no Azure")
