@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Webscraping de partidas de futebol
 
 <div align="center">
@@ -273,3 +274,6 @@ def esperar_elemento(driver, class_name, timeout=30):  # Aumentado para 30s
 Feito com ❤️ e ☕ por Diogo Ribeiro
 
 </div>
+=======
+# databricks_football_scraping
+>>>>>>> 539665a0df7aecda09422db0e4b570b493c82ce4
