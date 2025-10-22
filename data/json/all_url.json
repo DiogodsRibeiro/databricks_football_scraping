@@ -1,0 +1,6 @@
+{
+    "endpoints": ["resultados", "calendario"],
+    "urls": [
+        "https://www.flashscore.com.br/futebol/brasil/brasileirao-betano/{endpoint}/"
+    ]
+}
