@@ -1,7 +1,7 @@
 import dlt
 
 @dlt.table(
-    name="bronze.calendar",  # ← Nome completo com schema
+    name="bronze.calendar",  
     comment="Ingestão de dados de calendário"
 )
 def bronze_calendar():
