@@ -1,8 +1,6 @@
 import json
 import os
 import re
-from io import StringIO
-import csv
 import unicodedata
 from pathlib import Path
 from selenium import webdriver
@@ -13,7 +11,7 @@ from selenium.common.exceptions import NoSuchElementException
 from datetime import datetime
 import time
 import random
-from azure.storage.blob import BlobServiceClient, ContentSettings
+from azure.storage.blob import BlobServiceClient
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -26,7 +24,7 @@ URLS_FILE = "data/json/all_url.json"
 
 def upload_para_azure(dados, nome_arquivo):
     """
-    Faz upload do arquivo CSV para o Azure Blob Storage
+    Faz upload do arquivo JSON para o Azure Blob Storage
     """
     try:
         blob_service_client = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
@@ -39,37 +37,23 @@ def upload_para_azure(dados, nome_arquivo):
         except Exception:
             print(f"ℹ️  Container '{AZURE_CONTAINER_NAME}' já existe")
         
-        # Converter dados para CSV
-        if dados:
-            output = StringIO()
-            writer = csv.DictWriter(output, fieldnames=dados[0].keys(), delimiter=';')
-            writer.writeheader()
-            writer.writerows(dados)
-            csv_data = output.getvalue()
-        else:
-            csv_data = ""
-        
-        # Nome do arquivo CSV
-        blob_name = nome_arquivo.replace('.json', '.csv')
-
         blob_client = blob_service_client.get_blob_client(
             container=AZURE_CONTAINER_NAME, 
-            blob=blob_name
+            blob=nome_arquivo
         )
         
-        # Corrigido: usar ContentSettings ao invés de dict
-        blob_client.upload_blob(
-            csv_data, 
-            overwrite=True, 
-            content_settings=ContentSettings(content_type='text/csv')
-        )
+        # Converter para JSON
+        json_data = json.dumps(dados, ensure_ascii=False, indent=2)
         
-        print(f"✅ Arquivo salvo no Azure: {blob_name}")
+        blob_client.upload_blob(json_data, overwrite=True)
+        
+        print(f"✅ Arquivo salvo no Azure: {nome_arquivo}")
         return True
         
     except Exception as e:
         print(f"❌ Erro ao fazer upload para o Azure: {e}")
         return False
+
 
 def limpar_nome_arquivo(nome):
     nome_sem_acentos = unicodedata.normalize('NFKD', nome).encode('ASCII', 'ignore').decode('ASCII')
@@ -142,12 +126,12 @@ def extrair_dados(driver, url_resultado, ano_atual):
                     dados.append({
                         "origem": nacionalidade.capitalize(),
                         "Campeonato": campeonato,
-                        "Temporada": season,
-                        "Rodada": current_round,
-                        "Data": data_final,
-                        "Hora": date_time_raw.split()[1],
-                        "Time da Casa": home_team,
-                        "Time Visitante": away_team,
+                        "temporada": season,
+                        "rodada": current_round,
+                        "data": data_final,
+                        "hora": date_time_raw.split()[1],
+                        "time_casa": home_team,
+                        "time_visitante": away_team,
                         "id": f"{limpar_nome_arquivo(home_team)}_vs_{limpar_nome_arquivo(away_team)}_{data_final}".replace(" ", "")
                     })
 
@@ -187,7 +171,7 @@ def carga_calendario():
 
             time.sleep(random.uniform(6, 13))
 
-        nome_arquivo = 'all_calendar.csv'
+        nome_arquivo = 'all_calendar.json'
         upload_para_azure(todos_os_dados, nome_arquivo)
         
         print(f"\n✅ Total de {len(todos_os_dados)} partidas salvas no Azure")
@@ -198,4 +182,4 @@ def carga_calendario():
     print("\n✅ Extração Finalizada")
 
 
-carga_calendario()
+#carga_calendario()

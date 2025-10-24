@@ -1,9 +1,7 @@
 import json
 import re
-import csv
 import time
 from pathlib import Path
-import io 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -13,21 +11,20 @@ from azure.storage.blob import BlobServiceClient
 from dotenv import load_dotenv
 import os
 
-# Carregar variáveis do arquivo .env
 load_dotenv()
 
-# Configurações do Azure
-AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
-AZURE_CONTAINER_NAME = "statistics-urls"  # Nome do container para estatísticas
+DIAS_RETROATIVOS = 10
 
-# Caminho relativo ao script
+AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+AZURE_CONTAINER_NAME = "statistics-urls"  
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 INPUT_FILE = "data/json/all_url.json"
 
 
 def upload_para_azure(dados, nome_arquivo):
     """
-    Faz upload do arquivo CSV para o Azure Blob Storage
+    Faz upload do arquivo JSON para o Azure Blob Storage
     """
     try:
         blob_service_client = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
@@ -39,21 +36,15 @@ def upload_para_azure(dados, nome_arquivo):
         except Exception:
             print(f"ℹ️  Container '{AZURE_CONTAINER_NAME}' já existe")
         
-        # Converter para CSV
-        csv_buffer = io.StringIO()
-        csv_writer = csv.writer(csv_buffer)
-        csv_writer.writerow(['url'])
-        for url in dados:
-            csv_writer.writerow([url])
-        csv_data = csv_buffer.getvalue()
-        
         blob_name = nome_arquivo
         blob_client = blob_service_client.get_blob_client(
             container=AZURE_CONTAINER_NAME, 
             blob=blob_name
         )
         
-        blob_client.upload_blob(csv_data, overwrite=True)
+        json_data = json.dumps(dados, ensure_ascii=False, indent=2)
+        
+        blob_client.upload_blob(json_data, overwrite=True)
         
         print(f"✅ Arquivo salvo no Azure: {blob_name}")
         return True
@@ -75,7 +66,7 @@ def coletar_urls_estatisticas():
     all_stats_links = []
 
     hoje = datetime.now().date()
-    inicio_intervalo = hoje - timedelta(days=2)
+    inicio_intervalo = hoje - timedelta(days=DIAS_RETROATIVOS)
 
     try:
         for URL in urls_input:
@@ -132,7 +123,7 @@ def coletar_urls_estatisticas():
                 print(f"Erro ao processar {URL}: {e}")
                 continue
 
-        nome_arquivo = 'statistics_urls.csv'
+        nome_arquivo = 'statistics_urls.json'
         upload_para_azure(all_stats_links, nome_arquivo)
         
         print(f"\n✅ {len(all_stats_links)} links (últimos 4 dias incluindo hoje) salvos no Azure")
@@ -140,4 +131,4 @@ def coletar_urls_estatisticas():
     finally:
         driver.quit()
 
-coletar_urls_estatisticas()
+#coletar_urls_estatisticas()

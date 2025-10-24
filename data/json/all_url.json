@@ -1,6 +1,33 @@
 {
     "endpoints": ["resultados", "calendario"],
     "urls": [
-        "https://www.flashscore.com.br/futebol/brasil/brasileirao-betano/{endpoint}/"
+        "https://www.flashscore.com.br/futebol/espanha/laliga/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/brasil/brasileirao-betano/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/brasil/brasileirao-serie-b-superbet/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/franca/ligue-1/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/inglaterra/campeonato-ingles/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/inglaterra/2-divisao/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/europa/liga-dos-campeoes/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/alemanha/bundesliga/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/noruega/serie-de-elite/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/dinamarca/superliga/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/america-do-sul/copa-libertadores/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/alemanha/2-bundesliga/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/arabia-saudita/primeira-liga/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/suica/superliga/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/china/superliga/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/brasil/copa-betano-do-brasil/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/portugal/liga-portugal/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/alemanha/dfb-pokal/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/inglaterra/copa-da-efl/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/europa/liga-europa/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/suecia/allsvenskan/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/italia/serie-a/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/turquia/super-lig/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/america-do-sul/copa-sul-americana/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/argentina/torneo-betano/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/equador/liga-pro/{endpoint}/",
+        "https://www.flashscore.com.br/futebol/holanda/eredivisie/{endpoint}",
+        "https://www.flashscore.com.br/futebol/chile/liga-de-primera/{endpoint}"
     ]
 }

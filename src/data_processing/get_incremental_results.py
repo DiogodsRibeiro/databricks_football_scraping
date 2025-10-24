@@ -2,8 +2,6 @@ import json
 import os
 import re
 import unicodedata
-import csv
-import io
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -19,11 +17,11 @@ load_dotenv()
 AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 AZURE_CONTAINER_NAME = os.getenv("AZURE_CONTAINER_NAME", "results")
 
-DIAS_RETROATIVOS = 4
+DIAS_RETROATIVOS = 10
 
 def upload_para_azure(dados, nome_arquivo):
     """
-    Faz upload incremental do arquivo CSV para o Azure Blob Storage
+    Faz upload incremental do arquivo JSON para o Azure Blob Storage
     """
     try:
         blob_service_client = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
@@ -44,8 +42,7 @@ def upload_para_azure(dados, nome_arquivo):
         try:
             download_stream = blob_client.download_blob()
             conteudo_existente = download_stream.readall().decode('utf-8')
-            csv_reader = csv.DictReader(io.StringIO(conteudo_existente))
-            dados_existentes = list(csv_reader)
+            dados_existentes = json.loads(conteudo_existente)
             print(f"📥 Arquivo existente carregado com {len(dados_existentes)} registros")
         except Exception:
             print(f"ℹ️  Arquivo não existe ainda, criando novo")
@@ -58,30 +55,10 @@ def upload_para_azure(dados, nome_arquivo):
         print(f"➕ Adicionando {len(novos_dados)} novos registros")
         print(f"📊 Total final: {len(dados_finais)} registros")
         
-        # Coletar todas as colunas possíveis
-        todas_colunas = set()
-        for item in dados_finais:
-            todas_colunas.update(item.keys())
+        # Converter para JSON
+        json_data = json.dumps(dados_finais, ensure_ascii=False, indent=2)
         
-        # Ordenar colunas: colunas fixas primeiro, depois as outras
-        colunas_fixas = ['id', 'origem', 'Campeonato', 'Temporada', 'Rodada', 'Data', 'Hora', 
-                        'Time da Casa', 'Time Visitante', 'Placar da Casa', 'Placar do Visitante']
-        outras_colunas = sorted([col for col in todas_colunas if col not in colunas_fixas])
-        fieldnames = [col for col in colunas_fixas if col in todas_colunas] + outras_colunas
-        
-        # Converter para CSV
-        csv_buffer = io.StringIO()
-        if dados_finais:
-            csv_writer = csv.DictWriter(csv_buffer, fieldnames=fieldnames, extrasaction='ignore')
-            csv_writer.writeheader()
-            
-            for item in dados_finais:
-                row = {col: item.get(col, '') for col in fieldnames}
-                csv_writer.writerow(row)
-        
-        csv_data = csv_buffer.getvalue()
-        
-        blob_client.upload_blob(csv_data, overwrite=True)
+        blob_client.upload_blob(json_data, overwrite=True)
         
         print(f"✅ Arquivo salvo no Azure: {nome_arquivo}")
         return True
@@ -197,15 +174,15 @@ def extrair_dados(url_resultado, ano_atual, carregar_todos=False):
 
                         dados.append({
                             "origem": nacionalidade.capitalize(),
-                            "Campeonato": campeonato,
-                            "Temporada": season,
-                            "Rodada": current_round,
-                            "Data": data_final,
-                            "Hora": date_time_raw.split()[1],
-                            "Time da Casa": home_team,
-                            "Time Visitante": away_team,
-                            "Placar da Casa": home_score,
-                            "Placar do Visitante": away_score,
+                            "campeonato": campeonato,
+                            "temporada": season,
+                            "rodada": current_round,
+                            "data": data_final,
+                            "hora": date_time_raw.split()[1],
+                            "time_casa": home_team,
+                            "time_visitante": away_team,
+                            "placar_casa": home_score,
+                            "placar_visitante": away_score,
                             "id": f"{limpar_nome_arquivo(home_team)}_vs_{limpar_nome_arquivo(away_team)}_{data_final}".replace(" ", "")
                         })
 
@@ -227,7 +204,7 @@ with open("data/json/all_url.json", "r", encoding="utf-8") as f:
     urls = [url.replace("{endpoint}", "resultados") for url in config["urls"]]
 
 
-def carga_incremental_results(carregar_todos=False):
+def carga_incremental_results(carregar_todos=True):
     ano_atual = datetime.now().year
     todos_os_dados = []
 
@@ -244,7 +221,7 @@ def carga_incremental_results(carregar_todos=False):
         print(f"📊 {len(dados_partida)} jogos encontrados para {campeonato} ({nacionalidade})")
         todos_os_dados.extend(dados_partida)
 
-    nome_arquivo = f'all_results_incremental.csv'
+    nome_arquivo = f'all_results_incremental.json'
     
     upload_para_azure(todos_os_dados, nome_arquivo)
 
@@ -253,4 +230,4 @@ def carga_incremental_results(carregar_todos=False):
 
 # Exemplos de uso:
 # carga_incremental_results()                    # Extrai apenas últimos 4 dias
-carga_incremental_results(carregar_todos=True)  # Clica em "Mostrar mais" e extrai tudo
+#carga_incremental_results(carregar_todos=True)  # Clica em "Mostrar mais" e extrai tudo
