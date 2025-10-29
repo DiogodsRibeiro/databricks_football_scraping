@@ -2,7 +2,7 @@ import dlt
 from pyspark.sql.functions import col
 
 @dlt.table(
-    name="silver.statistics",
+    name="silver.fact_statistics",
     comment="Estatísticas das partidas"
 )
 def silver_statistics():

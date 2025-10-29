@@ -2,7 +2,7 @@ import dlt
 from pyspark.sql.functions import col, to_timestamp, trim, concat_ws
 
 @dlt.table(
-    name="silver.calendar",
+    name="silver.fact_calendar",
     comment="Dados de calendário limpos e padronizados"
 )
 def silver_calendar():
