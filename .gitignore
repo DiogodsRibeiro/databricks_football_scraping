@@ -1,2 +1,26 @@
 .env
 .vscode
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribuição / empacotamento
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Databricks
+.databricks/
+
+# Ambientes virtuais
+venv/
+env/
+ENV/
