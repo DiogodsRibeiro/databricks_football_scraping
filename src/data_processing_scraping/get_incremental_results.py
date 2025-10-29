@@ -17,7 +17,7 @@ load_dotenv()
 AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 AZURE_CONTAINER_NAME = os.getenv("AZURE_CONTAINER_NAME", "results")
 
-DIAS_RETROATIVOS = 10
+DIAS_RETROATIVOS = 2
 
 def upload_para_azure(dados, nome_arquivo):
     """
